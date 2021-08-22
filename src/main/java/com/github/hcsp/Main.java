@@ -17,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 
 public class Main {
@@ -33,11 +34,13 @@ public class Main {
             }
 
             if (isInterestingLink(link)) {
+                System.out.println(link);
+
                 Document doc = httpGetAndParseHtml(link);
 
                 parseUrlsFromPageAndStoreIntoDatabase(connection, doc);
 
-                storeIntoDatabaseIfItIsNewsPage(doc);
+                storeIntoDatabaseIfItIsNewsPage(connection, doc, link);
 
                 updateDatabase(connection, link, "insert into LINKS_ALREADY_PROCESSED (link) values (?)");
             }
@@ -48,6 +51,15 @@ public class Main {
         for (Element aTag : doc.select("a")
         ) {
             String href = aTag.attr("href");
+
+            if (href.startsWith("//")) {
+                href = "https:" + href;
+            }
+
+            if (href.toLowerCase().startsWith("javascript")) {
+                continue;
+            }
+
             updateDatabase(connection, href, "insert into LINKS_TO_BE_PROCESSED (link) values (?)");
         }
     }
@@ -83,12 +95,19 @@ public class Main {
         return null;
     }
 
-    private static void storeIntoDatabaseIfItIsNewsPage(Document doc) {
+    private static void storeIntoDatabaseIfItIsNewsPage(Connection connection, Document doc, String link) throws SQLException {
         ArrayList<Element> articleTags = doc.select("article");
         if (!articleTags.isEmpty()) {
             for (Element articleTag : articleTags) {
                 String title = articleTags.get(0).child(0).text();
-                System.out.println(title);
+                String content = articleTags.stream().map(Element::text).collect(Collectors.joining("\n"));
+
+                try (PreparedStatement statement = connection.prepareStatement("insert into NEWS (url, title, content, created_at, modified_at) values (?,?,?,now(),now())")) {
+                    statement.setString(1, link);
+                    statement.setString(2, title);
+                    statement.setString(3, content);
+                    statement.executeUpdate();
+                }
             }
         }
     }
@@ -96,14 +115,10 @@ public class Main {
     private static Document httpGetAndParseHtml(String link) throws IOException {
         CloseableHttpClient httpclient = HttpClients.createDefault();
 
-        if (link.startsWith("//")) {
-            link = "https:" + link;
-        }
         HttpGet httpGet = new HttpGet(link);
         httpGet.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36");
 
         try (CloseableHttpResponse response1 = httpclient.execute(httpGet)) {
-            System.out.println(response1.getStatusLine());
             HttpEntity entity1 = response1.getEntity();
             String html = EntityUtils.toString(entity1);
             return Jsoup.parse(html);
