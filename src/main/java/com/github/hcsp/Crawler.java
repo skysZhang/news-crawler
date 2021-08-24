@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 
 
 public class Crawler {
-    CrawlerDAO dao = new JdbcCrawlerDao();
+    CrawlerDAO dao = new MyBatisCrawlerDao();
 
     public void run() throws SQLException, IOException {
         String link;
@@ -26,6 +26,7 @@ public class Crawler {
         while ((link = dao.getNextLinkThenDelete()) != null) {
             // 询问数据库，当前链接是不是已经被处理过了
             if (dao.isLinkProcessed(link)) {
+                System.out.println(link);
                 continue;
             }
 
@@ -38,7 +39,7 @@ public class Crawler {
 
                 storeIntoDatabaseIfItIsNewsPage(doc, link);
 
-                dao.updateDatabase(link, "insert into LINKS_ALREADY_PROCESSED (link) values (?)");
+                dao.insertProcessedLink(link);
             }
         }
     }
@@ -59,8 +60,7 @@ public class Crawler {
             if (href.toLowerCase().startsWith("javascript")) {
                 continue;
             }
-
-            dao.updateDatabase(href, "insert into LINKS_TO_BE_PROCESSED (link) values (?)");
+            dao.insertLinkToBeProcessed(href);
         }
     }
 
