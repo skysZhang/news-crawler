@@ -24,8 +24,8 @@ public class JdbcCrawlerDao implements CrawlerDAO {
             while (resultSet.next()) {
                 return resultSet.getString(1);
             }
-        }finally {
-            if(resultSet != null) {
+        } finally {
+            if (resultSet != null) {
                 resultSet.close();
             }
         }
