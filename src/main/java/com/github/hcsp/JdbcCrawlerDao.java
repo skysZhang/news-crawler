@@ -6,7 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class JdbcCrawlerDao implements CrawlerDAO{
+public class JdbcCrawlerDao implements CrawlerDAO {
     private final Connection connection;
 
     public JdbcCrawlerDao() {
@@ -18,12 +18,15 @@ public class JdbcCrawlerDao implements CrawlerDAO{
     }
 
     public String getNextLink(String sql) throws SQLException {
-        ResultSet result = null;
-        try (PreparedStatement statement = connection.prepareStatement(sql)
-        ) {
-            ResultSet resultSet = statement.executeQuery();
+        ResultSet resultSet = null;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 return resultSet.getString(1);
+            }
+        } finally {
+            if (resultSet != null) {
+                resultSet.close();
             }
         }
         return null;
@@ -64,5 +67,15 @@ public class JdbcCrawlerDao implements CrawlerDAO{
             }
         }
         return false;
+    }
+
+    @Override
+    public void insertProcessedLink(String link) {
+
+    }
+
+    @Override
+    public void insertLinkToBeProcessed(String href) {
+
     }
 }
