@@ -16,36 +16,42 @@ import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 
-public class Crawler {
-    CrawlerDAO dao = new MyBatisCrawlerDao();
+public class Crawler extends Thread {
+    private CrawlerDAO dao;
 
-    public void run() throws SQLException, IOException {
-        String link;
-
-        // 从数据库中加载下一个链接，如果能加载到则进行循环
-        while ((link = dao.getNextLinkThenDelete()) != null) {
-            // 询问数据库，当前链接是不是已经被处理过了
-            if (dao.isLinkProcessed(link)) {
-                System.out.println(link);
-                continue;
-            }
-
-            if (isInterestingLink(link)) {
-                System.out.println(link);
-
-                Document doc = httpGetAndParseHtml(link);
-
-                parseUrlsFromPageAndStoreIntoDatabase(doc);
-
-                storeIntoDatabaseIfItIsNewsPage(doc, link);
-
-                dao.insertProcessedLink(link);
-            }
-        }
+    public Crawler(CrawlerDAO dao) {
+        this.dao = dao;
     }
 
-    public static void main(String[] args) throws IOException, SQLException {
-        new Crawler().run();
+    @Override
+    public void run() {
+        try {
+
+            String link;
+
+            // 从数据库中加载下一个链接，如果能加载到则进行循环
+            while ((link = dao.getNextLinkThenDelete()) != null) {
+                // 询问数据库，当前链接是不是已经被处理过了
+                if (dao.isLinkProcessed(link)) {
+                    System.out.println(link);
+                    continue;
+                }
+
+                if (isInterestingLink(link)) {
+                    System.out.println(link);
+
+                    Document doc = httpGetAndParseHtml(link);
+
+                    parseUrlsFromPageAndStoreIntoDatabase(doc);
+
+                    storeIntoDatabaseIfItIsNewsPage(doc, link);
+
+                    dao.insertProcessedLink(link);
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void parseUrlsFromPageAndStoreIntoDatabase(Document doc) throws SQLException {
